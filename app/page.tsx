@@ -1,113 +1,167 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from 'react';
+// className="w-full p-4 text-xl resize-none text-black rounded-xl min-h-[500px]"
+
+
+function wrapLine(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+    const words = text.split(/[\s]/);
+    let line = '';
+    let lines = [];
+    let yf = y;
+    let xf = x;
+
+    for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = context.measureText(testLine);
+        let testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+            lines.push(line);
+            context.fillText(line, x, yf);
+            line = words[n] + ' ';
+            yf += lineHeight;
+        } else {
+            line = testLine;
+        }
+        xf = x + testWidth;
+    }
+    lines.push(line); // Agrega la última línea
+    context.fillText(line, x, yf);
+    const maxLineWidth = context.measureText(line).width;
+    return { xl: x + maxLineWidth, yl: yf, lines: lines };
+}
+
+function wrapText(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+    const linesSplitted = text.split(/[\n]/);
+    let lines: string[] = [];
+    let yf = y;
+    let xf = 0;
+
+    for (let i = 0; i < linesSplitted.length; i++) {
+        const line = linesSplitted[i];
+        const yi = i === 0 ? yf : yf + lineHeight;
+        const { xl, yl, lines: linesWrapped } = wrapLine(context, line, x, yi, maxWidth, lineHeight);
+        lines.push(...linesWrapped);
+        yf = yl;
+        xf = xl;
+    }
+
+    return { x: xf, y: yf, listLines: lines };
+}
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    const [textStyle, setTextStyle] = useState({fontFamily: 'Arial', fontSize: 16, color: 'black'});
+    const [text, setText] = useState("");
+    const [cursor, setCursor] = useState(0);
+    const [focused, setFocused] = useState(false);
+    const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+    const editorWidth = 800;
+    const pxSVG = 20;
+    const pySVG = 30;
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    useEffect(() => {
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+        // calculate the coordinates of the cursor line in the text font and size
+        // 1. fill the canvas with the text with every block its own style until the cursor
+        let canvas = document.getElementById('canvas');
+        if (!canvas) return;
+        if(!(canvas instanceof HTMLCanvasElement)) return;
+        let context = canvas.getContext('2d');
+        if (!context) return;
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.font = `${textStyle.fontSize}px ${textStyle.fontFamily}`;
+        const substring = text.slice(0, cursor);
+        const {x, y} = wrapText(context, substring, 0, 0, editorWidth, textStyle.fontSize);
+
+        // set scroll position to the cursor position witn scrollbehaviour smooth
+        document.body.style.scrollBehavior = 'smooth';
+        window.scrollTo(0, y - 100);
+
+        setCursorPosition({ x: x, y: y });
+
+    }, [cursor]);
+
+    return (
+        <main
+            className='flex flex-col items-center justify-center w-full flex-1 px-20 py-10 text-center min-h-screen'
         >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+            <canvas id="canvas" style={{display: 'none'}}></canvas>
+            <nav>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+            </nav>
+            <svg
+                onFocus={
+                    () => {
+                        setFocused(true);
+                    }
+                }
+                className='p-4 text-xl resize-none text-black bg-white'
+                tabIndex={0} id="myTextEditor"
+                width={editorWidth} height={1200}
+                // console log selected text
+                onSelect={(e) => {
+                    const selection = window.getSelection();
+                    console.log(selection);
+                }}
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+                onKeyDown={
+                    (e) => {
+                        e.preventDefault();
+                        if (e.key.length === 1) {
+                            setText(text.slice(0, cursor) + e.key + text.slice(cursor));
+                            setCursor(cursor + 1);
+                        } else if (e.key === 'Backspace') {
+                            setText(text.slice(0, cursor - 1) + text.slice(cursor));
+                            setCursor(cursor - 1);
+                        } else if (e.key === 'Enter') {
+                            setText(text.slice(0, cursor) + '\n' + text.slice(cursor));
+                            setCursor(cursor + 1);
+                        }
+                        else if (e.key === 'Delete') {
+                            setText(text.slice(0, cursor) + text.slice(cursor + 1));
+                        }
+                        else if (e.key === 'ArrowLeft') {
+                            setCursor(cursor !== 0 ? cursor - 1 : 0);
+                        }
+                        else if (e.key === 'ArrowRight') {
+                            setCursor(cursor !== text.length ? cursor + 1 : text.length);
+                        }
+                        console.log(text);
+                    }
+                }
+            >
+                {
+                    // set the cursor as a vertical line in the position of the cursor ( NEEDS TO CALCULATE WITH LINES)
+                    focused === true ? <line
+                        x1={cursorPosition.x + pxSVG -3 } y1={cursorPosition.y + pySVG + 5}
+                        x2={cursorPosition.x + pxSVG -3 } y2={cursorPosition.y + pySVG - 20}
+                        stroke="black"
+                        strokeWidth="2"
+                        className='animate-cursor'
+                    /> : null 
+                }
+                {
+                    text.split('\n').map((line, index) => {
+                        return (
+                            <text
+                                x={pxSVG} y={index * textStyle.fontSize + pySVG}
+                                key={index}
+                                // textfont and size
+                                fontFamily={textStyle.fontFamily}
+                                fontSize={textStyle.fontSize}
+                                fill={textStyle.color}
+                            >
+                                {line}
+                            </text>
+                        );
+                    })
+                }
+            </svg>
+            {/* <p id="textOutput" className='text-white'>
+                {text}
+            </p> */}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
-}
+        </main>
+    );
+};
