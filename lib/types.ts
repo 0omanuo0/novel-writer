@@ -7,7 +7,7 @@ export interface Project {
     description: string;
     creation_date: string;
     last_updated_date: string;
-    content: string;
+    content: string|Content[];
 }
 
 export interface Content{
@@ -21,4 +21,25 @@ export interface TextContent {
     project_id: string;
     type: string;
     content: string;
+}
+
+
+interface Character {
+    name: string;
+    description: string;
+    personality: string;
+    relationships: string[];
+}
+
+interface TextNode {
+    title: string;
+    description: string;
+    keywords: string[];
+    content: string[];
+    characters?: Character[];
+    children?: TextNode[];
+}
+
+export interface Description {
+    text_structure: TextNode[];
 }
