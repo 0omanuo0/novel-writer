@@ -17,26 +17,30 @@ interface Item {
     otherContent: React.ReactNode;
 }
 
-function SortableItem({ id, children, otherContent }: { id: string; children: React.ReactNode; otherContent: React.ReactNode }) {
+function SortableItem({ id, children, otherContent, handleComponent }: { id: string; children: React.ReactNode; otherContent: React.ReactNode, handleComponent?: React.ReactNode }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: id, strategy: verticalListSortingStrategy });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         display: 'flex',
-        width: "100%",
+        width: "100%",       
+        
     };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            <div className="handle cursor-grab active:cursor-grabbing select-none pl-1 pr-2">::</div>
-            <div className="content w-full justify-between flex">{children} {otherContent}</div>
-
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="flex items-center space-x-2">
+            <div className="handle">{handleComponent}</div>
+            <div className="content w-full flex justify-between items-center">
+                {children}
+                {otherContent}
+            </div>
         </div>
     );
+    
 };
 
-export default function DnDList({ initialItems, onChange }: { initialItems: Item[]; onChange?: (items: Item[]) => void }) {
+export default function DnDList({ initialItems, onChange, className, handleComponent }: { initialItems: Item[]; onChange?: (items: Item[]) => void, className?: string, handleComponent?: React.ReactNode }) {
     const [items, setItems] = useState(initialItems);
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -64,9 +68,9 @@ export default function DnDList({ initialItems, onChange }: { initialItems: Item
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-                <div className="list-container w-full">
+                <div className={"list-container w-full" + className}>
                     {items.map((item) => (
-                        <SortableItem key={item.id} id={item.id} otherContent={item.otherContent}>
+                        <SortableItem key={item.id} id={item.id} otherContent={item.otherContent} handleComponent={handleComponent}>
                             {item.content}
                         </SortableItem>
                     ))}
