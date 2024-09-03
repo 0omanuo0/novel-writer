@@ -211,4 +211,13 @@ input:checked + .slider:before {
   .text-balance {
     text-wrap: balance;
   }  
+  .left-icons{
+    @apply cursor-pointer h-10 w-10 mx-auto p-1 bg-gray-600/30 rounded-md bg-gradient-to-r from-purple-500 to-pink-500;
+  }
+  .left-icons:hover{
+    @apply opacity-100;
+  }
+  .left-icons.no-active{
+    @apply opacity-60 hover:opacity-100 transition-opacity duration-300;
+  }
 }
